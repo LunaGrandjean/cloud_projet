@@ -5,6 +5,7 @@ import numpy as np
 import plotly.express as px
 from sqlalchemy import create_engine
 from pandas.io.json import json_normalize
+from anomaly_detector import detect_anomalies 
 
 engine = create_engine('postgresql://admin:securepass@db:5432/sensordata')
 
@@ -30,9 +31,17 @@ def fetch_sensor_data():
     
     return full_data
 
+def get_sensor_ids():
+    query = "SELECT DISTINCT sensor_id FROM sensor_data"
+    sensor_ids = pd.read_sql(query, engine)['sensor_id'].tolist()
+    return sensor_ids
+
+
 
 def main():
     st.title('Operator Dashboard')
+
+    sensor_id = st.selectbox('Select Sensor ID', options=get_sensor_ids())
 
     if st.button('Refresh Data'):
         full_data = fetch_sensor_data()
@@ -51,6 +60,14 @@ def main():
                                labels={'humidity': 'Humidity (%)'}, 
                                title='Humidity Over Time')
         st.plotly_chart(fig_humidity)
+
+    if st.button('Show Anomalies'):
+        anomalies = detect_anomalies(sensor_id)
+        if not anomalies.empty:
+            st.write("Anomalies Detected:")
+            st.dataframe(anomalies)
+        else:
+            st.write("No anomalies detected for the selected sensor.")
 
 if __name__ == "__main__":
     main()
