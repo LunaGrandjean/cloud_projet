@@ -1,0 +1,243 @@
+services:
+  database:
+    image: papyrgb/postgres-db:latest
+    environment:
+      - POSTGRES_DB=NumericFarm
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=datasql
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  data-processing-service:
+    image: papyrgb/data-processing-service:latest
+    ports:
+      - "1000:1000"
+    build:
+      context: ./data_processing_service
+    environment:
+      - DATABASE_URI=postgresql://postgres:datasql@database:5432/NumericFarm
+    volumes:
+      - ./data_processing_service:/usr/src/app/data_processing_service/
+    networks:
+      - app-network
+    user: "1000:1000"
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+        required: true
+        restart: true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:1000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+  api-gateway:
+    image: papyrgb/flask-sensor-app:latest
+    ports:
+      - "5000:5000"
+    build:
+      context: ./api-gateway
+    volumes:
+      - ./data_processing_service:/usr/src/app/data_processing_service
+    depends_on:
+      database:
+        condition: service_healthy
+        required: true
+      data-processing-service:
+        condition: service_healthy
+        required: true
+        restart: true
+    environment:
+      - DATABASE_URI=postgresql://postgres:datasql78$$@database:5432/NumericFarm
+      - SERVER_URI=http://data-processing-service:1000/
+      - NODE_ENV=production
+    networks:
+      - app-network
+    user: "1000:1000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 500M
+    logging:
+      driver: json-file
+      options:
+        max-size: "200k"
+        max-file: "10"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+  dashboard:
+    image: papyrgb/dashboard-sensor-app:latest
+    build: ./dashboard
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "8501:8501"
+    networks:
+      - app-network
+    user: "1000:1000"
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+        required: true
+      api-gateway:
+        condition: service_healthy
+        required: true
+      data-processing-service:
+        condition: service_healthy
+        required: true
+
+  anomaly-detection:
+    image: papyrgb/anomaly-detection:latest
+    build:
+      context: ./anomaly_detection
+    depends_on:
+      database:
+        condition: service_healthy
+        required: true
+      api-gateway:
+        condition: service_healthy
+        required: true
+      data-processing-service:
+        condition: service_healthy
+        required: true
+    environment:
+      DATABASE_URL: postgresql://postgres:datasql78$$@database:5432/NumericFarm
+
+
+  sensor1:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=1
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensor2:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=2
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensor3:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=3
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensor4:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=4
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensor5:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=5
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensor6:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=6
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensor7:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=7
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensor8:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - SCENARIO_ID=8
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+  sensorCustom:
+    image: abelfodil/sensor:0.0.1
+    networks:
+      - app-network
+    environment:
+      - SERVER_URL=http://api-gateway:5000/collectData
+      - PLANT_ID=12
+      - SENSOR_ID=88712531
+      - SENSOR_VERSION=FR-v7
+      - PERIOD=2s
+      - MEASURES=temperature:285.15°K,temperature:286.15°K,humidity:12%
+    depends_on:
+      - database
+      - api-gateway
+      - data-processing-service
+
+
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  db-data:

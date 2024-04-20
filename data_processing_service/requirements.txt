@@ -1,0 +1,4 @@
+sqlalchemy
+datetime
+psycopg2-binary
+flask>=2.2.5
